@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Práctica Interactiva: Sociología de Max Weber (Red Flexible)</title>
+    
+    <!-- Tailwind CSS para diseño responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Konva.js para el lienzo interactivo y conectores de red -->
+    <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+    
+    <!-- Tipografía Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #canvas-wrapper {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 28px 28px;
+            touch-action: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        @keyframes pulseUrgent {
+            0%, 100% { background-color: #991b1b; border-color: #fca5a5; }
+            50% { background-color: #dc2626; border-color: #ffffff; }
+        }
+        .timer-urgent {
+            animation: pulseUrgent 1.5s infinite;
+        }
+
+        @media print {
+            body { overflow: visible !important; background: #ffffff !important; }
+            #game-screen, #connector-modal, #confirm-modal, #toast-message { display: none !important; }
+            #result-modal { position: static !important; background: transparent !important; padding: 0 !important; display: block !important; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- ===================================================================== -->
+    <!-- ENTORNO DE PRÁCTICA (10 MINUTOS - RED FLEXIBLE MULTITEORÍA)           -->
+    <!-- ===================================================================== -->
+    <div id="game-screen" class="flex flex-col h-full w-full">
+        
+        <!-- Barra Superior Institucional -->
+        <header class="bg-slate-900 text-white border-b border-slate-700 px-3 py-2.5 sm:px-5 sm:py-3 flex flex-wrap items-center justify-between gap-2 z-20 shrink-0 shadow-sm">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-9 h-9 rounded-lg bg-indigo-900 border border-indigo-700 text-indigo-100 flex items-center justify-center font-bold text-xs sm:text-sm shrink-0">
+                    PM
+                </div>
+                <div class="min-w-0">
+                    <h2 class="text-xs sm:text-sm font-bold text-white truncate">Práctica Red Flexible: Durkheim, Marx y Weber</h2>
+                    <p class="text-[11px] sm:text-xs text-indigo-200 truncate">Versión de prueba ampliada • 12 conceptos clave</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3 ml-auto">
+                <div class="hidden md:flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs text-slate-200">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                    <span>Flechas trazadas: <strong id="connections-count" class="text-white">0</strong></span>
+                </div>
+
+                <!-- Temporizador de 10 minutos -->
+                <div id="timer-box" class="flex items-center gap-1.5 bg-slate-800 border border-slate-600 text-slate-100 px-3 py-1.5 rounded-lg font-mono text-sm sm:text-base font-bold shadow-inner" title="Tiempo restante (10 minutos)">
+                    <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span id="timer-display">10:00</span>
+                </div>
+
+                <button id="btn-finish" type="button"
+                    class="px-3.5 py-2 sm:px-5 sm:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md border border-indigo-400/40 transition flex items-center gap-1.5 cursor-pointer shrink-0">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Finalizar Práctica</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Instrucciones Breves -->
+        <div class="bg-indigo-950 text-indigo-100 border-b border-indigo-900 px-3 py-2 sm:px-5 text-xs flex flex-wrap items-center justify-between gap-2 z-10 shrink-0">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-white">Objetivo:</span>
+                <span>Conecta libremente los 12 nodos de <strong>Durkheim</strong>, <strong>Marx</strong> y <strong>Weber</strong> formando ramificaciones conceptuales.</span>
+            </div>
+            <div class="text-indigo-300 font-medium">Sin registro de datos</div>
+        </div>
+
+        <!-- Barra de Herramientas -->
+        <div class="bg-white border-b border-slate-200 px-3 py-1.5 sm:px-5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 z-10 shrink-0">
+            <span class="inline-flex items-center gap-1.5 font-medium text-slate-700">
+                <span class="w-3 h-3 rounded-full bg-indigo-700 inline-block border border-white shadow-xs"></span>
+                Arrastra desde el círculo azul de un nodo hacia otro para crear una flecha
+            </span>
+            <div class="flex items-center gap-1.5 ml-auto">
+                <button id="btn-auto-grid" type="button" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-medium transition cursor-pointer">
+                    Ordenar Nodos
+                </button>
+                <div class="flex items-center bg-slate-100 border border-slate-300 rounded-lg overflow-hidden">
+                    <button id="btn-zoom-out" type="button" class="px-2.5 py-1 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer">−</button>
+                    <span id="zoom-level" class="px-2 text-[11px] font-mono text-slate-700 border-x border-slate-300">100%</span>
+                    <button id="btn-zoom-in" type="button" class="px-2.5 py-1 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer">+</button>
+                </div>
+                <button id="btn-reset-view" type="button" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-medium transition cursor-pointer">
+                    Centrar
+                </button>
+            </div>
+        </div>
+
+        <!-- Lienzo Konva.js -->
+        <main id="canvas-wrapper" class="relative flex-1 w-full h-full overflow-hidden">
+            <div id="konva-container" class="w-full h-full"></div>
+        </main>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: SELECCIÓN DE ETIQUETA DE CONECTOR                              -->
+    <!-- ===================================================================== -->
+    <div id="connector-modal" class="hidden fixed inset-0 z-40 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-300 overflow-hidden flex flex-col">
+            <div class="px-5 py-4 bg-slate-900 text-white border-b border-slate-700 flex items-center justify-between shrink-0">
+                <h3 class="font-bold text-white text-sm sm:text-base">Seleccionar Conector Lógico</h3>
+                <button id="btn-close-connector-modal" type="button" class="text-slate-300 hover:text-white p-1 rounded-lg cursor-pointer">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-slate-100 border border-slate-300 rounded-xl p-3 flex items-center justify-between gap-2 text-xs sm:text-sm">
+                    <span id="modal-source-label" class="font-bold text-slate-900 truncate">Origen</span>
+                    <span class="text-indigo-600 font-bold">➔</span>
+                    <span id="modal-target-label" class="font-bold text-slate-900 truncate">Destino</span>
+                </div>
+                <div id="connector-options-list" class="grid grid-cols-1 gap-2"></div>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-2">
+                    <button id="btn-delete-connection" type="button" class="hidden px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold text-xs cursor-pointer">
+                        Eliminar flecha
+                    </button>
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button id="btn-cancel-connector" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer">Cancelar</button>
+                        <button id="btn-save-connector" type="button" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm cursor-pointer">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: CONFIRMACIÓN FINALIZAR PRÁCTICA                                -->
+    <!-- ===================================================================== -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-40 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-300 p-6 space-y-4">
+            <h3 class="font-bold text-slate-900 text-base">¿Finalizar práctica de Max Weber?</h3>
+            <p class="text-xs sm:text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                Has trazado <strong id="confirm-conn-count" class="text-slate-900">0</strong> conexiones. Se comprobarán tus relaciones frente a las aristas válidas de la práctica.
+            </p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="btn-cancel-finish" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer">Seguir practicando</button>
+                <button id="btn-confirm-finish" type="button" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm cursor-pointer">Sí, Ver Resultados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: RESULTADOS DE LA PRÁCTICA                                      -->
+    <!-- ===================================================================== -->
+    <div id="result-modal" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-300 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+            <div class="px-6 py-5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                <h2 class="text-xl font-bold">Resultados de Práctica: Weber</h2>
+                <div id="result-badge" class="px-3 py-1 rounded-xl text-xs font-extrabold uppercase bg-indigo-500 text-white">EVALUADO</div>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div id="result-banner" class="rounded-xl p-4 border text-center bg-indigo-50 border-indigo-200 text-indigo-950">
+                    <div id="result-score-text" class="text-xl font-extrabold">Puntaje: 0 pts</div>
+                </div>
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Detalle de tus conexiones:</h4>
+                    <div id="feedback-list" class="space-y-1.5 max-h-52 overflow-y-auto pr-1 text-xs"></div>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button id="btn-restart" type="button" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm cursor-pointer">
+                        Intentar de Nuevo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificación Flotante -->
+    <div id="toast-message" class="hidden fixed bottom-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 transition-opacity duration-300">
+        Mensaje
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- LÓGICA DE LA PRÁCTICA                                                 -->
+    <!-- ===================================================================== -->
+    <script>
+        const PRACTICE_NODES = [
+            { id: "accion_social", label: "Acción Social" },
+            { id: "tipos_ideales", label: "Tipos Ideales" },
+            { id: "racional_fines", label: "Racional con arreglo a fines" },
+            { id: "racional_valores", label: "Racional con arreglo a valores" },
+            { id: "hechos_sociales", label: "Hechos Sociales" },
+            { id: "solidaridad_mecanica", label: "Solidaridad Mecánica" },
+            { id: "solidaridad_organica", label: "Solidaridad Orgánica" },
+            { id: "anomia_social", label: "Anomia Social" },
+            { id: "materialismo_historico", label: "Materialismo Histórico" },
+            { id: "infraestructura", label: "Infraestructura" },
+            { id: "superestructura", label: "Superestructura" },
+            { id: "lucha_clases", label: "Lucha de Clases" }
+        ];
+
+        const CONNECTOR_LABELS = [
+            { text: "determina a" },
+            { text: "se divide en" },
+            { text: "genera" },
+            { text: "se relaciona con" },
+            { text: "explica" }
+        ];
+
+        const VALID_PAIRS = [
+            ["accion_social", "tipos_ideales"],
+            ["tipos_ideales", "racional_fines"],
+            ["tipos_ideales", "racional_valores"],
+            ["accion_social", "racional_fines"],
+            ["hechos_sociales", "solidaridad_mecanica"],
+            ["hechos_sociales", "solidaridad_organica"],
+            ["solidaridad_organica", "anomia_social"],
+            ["solidaridad_mecanica", "anomia_social"],
+            ["materialismo_historico", "infraestructura"],
+            ["infraestructura", "superestructura"],
+            ["infraestructura", "lucha_clases"],
+            ["materialismo_historico", "lucha_clases"]
+        ];
+
+        const VALID_PAIRS_SET = new Set(
+            VALID_PAIRS.map(([a, b]) => [a, b].sort().join("::"))
+        );
+
+        const MAX_SCORE = VALID_PAIRS_SET.size * 10;
+
+        const state = {
+            timeLeft: 10 * 60,
+            timerInterval: null,
+            isFinished: false,
+            connections: [],
+            pendingConnection: null,
+            editingConnectionId: null,
+            selectedLabel: CONNECTOR_LABELS[0].text
+        };
+
+        function showToast(message) {
+            const toast = document.getElementById("toast-message");
+            toast.textContent = message;
+            toast.classList.remove("hidden", "opacity-0");
+            toast.classList.add("opacity-100");
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove("opacity-100");
+                toast.classList.add("opacity-0");
+                setTimeout(() => toast.classList.add("hidden"), 300);
+            }, 3000);
+        }
+
+        function getNodeLabel(id) {
+            const n = PRACTICE_NODES.find(item => item.id === id);
+            return n ? n.label : id;
+        }
+
+        function updateConnectionsCounter() {
+            document.getElementById("connections-count").textContent = state.connections.length;
+        }
+
+        function startTimer() {
+            const display = document.getElementById("timer-display");
+            state.timerInterval = setInterval(() => {
+                if (state.isFinished) {
+                    clearInterval(state.timerInterval);
+                    return;
+                }
+                state.timeLeft--;
+                const mins = Math.floor(state.timeLeft / 60);
+                const secs = state.timeLeft % 60;
+                display.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    evaluateAndFinish();
+                }
+            }, 1000);
+        }
+
+        let stage = null;
+        let edgesLayer = null;
+        let nodesLayer = null;
+        let tempLayer = null;
+
+        const NODE_WIDTH = 215;
+        const NODE_HEIGHT = 68;
+        const nodeGroups = {};
+        let isDrawingArrow = false;
+        let arrowStartNodeId = null;
+        let tempArrowLine = null;
+        let highlightedTargetId = null;
+
+        function initKonvaBoard() {
+            const container = document.getElementById("konva-container");
+            stage = new Konva.Stage({
+                container: "konva-container",
+                width: container.clientWidth,
+                height: container.clientHeight,
+                draggable: true
+            });
+
+            edgesLayer = new Konva.Layer();
+            nodesLayer = new Konva.Layer();
+            tempLayer = new Konva.Layer();
+
+            stage.add(edgesLayer);
+            stage.add(nodesLayer);
+            stage.add(tempLayer);
+
+            const positions = [
+                { id: "accion_social", x: 80, y: 100 },
+                { id: "tipos_ideales", x: 80, y: 220 },
+                { id: "racional_fines", x: 80, y: 340 },
+                { id: "racional_valores", x: 80, y: 460 },
+                { id: "hechos_sociales", x: 380, y: 100 },
+                { id: "solidaridad_mecanica", x: 380, y: 220 },
+                { id: "solidaridad_organica", x: 380, y: 340 },
+                { id: "anomia_social", x: 380, y: 460 },
+                { id: "materialismo_historico", x: 680, y: 100 },
+                { id: "infraestructura", x: 680, y: 220 },
+                { id: "superestructura", x: 680, y: 340 },
+                { id: "lucha_clases", x: 680, y: 460 }
+            ];
+
+            positions.forEach(pos => {
+                const nodeData = PRACTICE_NODES.find(n => n.id === pos.id);
+                createConceptNode(nodeData, pos.x, pos.y);
+            });
+
+            fitBoardToViewport();
+
+            stage.on("wheel", (e) => {
+                e.evt.preventDefault();
+                const scaleBy = 1.08;
+                const oldScale = stage.scaleX();
+                const pointer = stage.getPointerPosition();
+                if (!pointer) return;
+                const mousePointTo = {
+                    x: (pointer.x - stage.x()) / oldScale,
+                    y: (pointer.y - stage.y()) / oldScale
+                };
+                const newScale = e.evt.deltaY > 0 ? Math.max(0.4, oldScale / scaleBy) : Math.min(1.8, oldScale * scaleBy);
+                stage.scale({ x: newScale, y: newScale });
+                stage.position({
+                    x: pointer.x - mousePointTo.x * newScale,
+                    y: pointer.y - mousePointTo.y * newScale
+                });
+                document.getElementById("zoom-level").textContent = `${Math.round(newScale * 100)}%`;
+            });
+
+            stage.on("mousemove touchmove", handlePointerMove);
+            stage.on("mouseup touchend", handlePointerUp);
+
+            window.addEventListener("resize", () => {
+                if (!stage) return;
+                const wrapper = document.getElementById("konva-container");
+                stage.width(wrapper.clientWidth);
+                stage.height(wrapper.clientHeight);
+            });
+        }
+
+        function createConceptNode(nodeData, x, y) {
+            const group = new Konva.Group({ x, y, draggable: true, id: nodeData.id });
+
+            const card = new Konva.Rect({
+                width: NODE_WIDTH,
+                height: NODE_HEIGHT,
+                fill: "#ffffff",
+                stroke: "#64748b",
+                strokeWidth: 2,
+                cornerRadius: 12,
+                shadowColor: "rgba(15, 23, 42, 0.12)",
+                shadowBlur: 8,
+                shadowOffset: { x: 0, y: 3 },
+                name: "nodeCard"
+            });
+
+            const text = new Konva.Text({
+                text: nodeData.label,
+                width: NODE_WIDTH - 30,
+                height: NODE_HEIGHT,
+                x: 10,
+                y: 0,
+                fontFamily: "Inter, sans-serif",
+                fontSize: 13,
+                fontStyle: "bold",
+                fill: "#0f172a",
+                align: "center",
+                verticalAlign: "middle",
+                listening: false
+            });
+
+            const port = new Konva.Circle({
+                x: NODE_WIDTH,
+                y: NODE_HEIGHT / 2,
+                radius: 10,
+                fill: "#4f46e5",
+                stroke: "#ffffff",
+                strokeWidth: 2.5,
+                name: "nodePort"
+            });
+
+            group.add(card);
+            group.add(text);
+            group.add(port);
+
+            group.on("dragmove", () => redrawAllEdges());
+            group.on("dragend", () => redrawAllEdges());
+
+            const startConnection = (e) => {
+                e.cancelBubble = true;
+                if (state.isFinished) return;
+                isDrawingArrow = true;
+                arrowStartNodeId = nodeData.id;
+
+                const center = getNodeCenter(nodeData.id);
+                tempArrowLine = new Konva.Arrow({
+                    points: [center.x, center.y, center.x, center.y],
+                    pointerLength: 10,
+                    pointerWidth: 9,
+                    fill: "#4f46e5",
+                    stroke: "#4f46e5",
+                    strokeWidth: 3,
+                    dash: [6, 4],
+                    listening: false
+                });
+                tempLayer.add(tempArrowLine);
+                tempLayer.draw();
+            };
+
+            port.on("mousedown touchstart", startConnection);
+            nodesLayer.add(group);
+            nodeGroups[nodeData.id] = group;
+        }
+
+        function getRelativePointerPosition() {
+            const transform = stage.getAbsoluteTransform().copy();
+            transform.invert();
+            const pos = stage.getPointerPosition();
+            if (!pos) return null;
+            return transform.point(pos);
+        }
+
+        function handlePointerMove() {
+            if (!isDrawingArrow || !tempArrowLine) return;
+            const pos = getRelativePointerPosition();
+            if (!pos) return;
+            const startCenter = getNodeCenter(arrowStartNodeId);
+            tempArrowLine.points([startCenter.x, startCenter.y, pos.x, pos.y]);
+
+            const targetId = findNodeAtPoint(pos, arrowStartNodeId);
+            if (highlightedTargetId && highlightedTargetId !== targetId) {
+                resetNodeBorder(highlightedTargetId);
+                highlightedTargetId = null;
+            }
+            if (targetId) {
+                highlightedTargetId = targetId;
+                const card = nodeGroups[targetId].findOne(".nodeCard");
+                if (card) { card.stroke("#4f46e5"); card.strokeWidth(3); }
+            }
+            tempLayer.batchDraw();
+        }
+
+        function handlePointerUp() {
+            if (!isDrawingArrow) return;
+            const pos = getRelativePointerPosition();
+            const targetId = pos ? findNodeAtPoint(pos, arrowStartNodeId) : highlightedTargetId;
+
+            if (highlightedTargetId) {
+                resetNodeBorder(highlightedTargetId);
+                highlightedTargetId = null;
+            }
+            if (tempArrowLine) {
+                tempArrowLine.destroy();
+                tempArrowLine = null;
+                tempLayer.draw();
+            }
+
+            isDrawingArrow = false;
+            const fromId = arrowStartNodeId;
+            arrowStartNodeId = null;
+
+            if (fromId && targetId && fromId !== targetId && !state.isFinished) {
+                openConnectorModal(fromId, targetId);
+            }
+        }
+
+        function resetNodeBorder(id) {
+            const card = nodeGroups[id]?.findOne(".nodeCard");
+            if (card && !state.isFinished) { card.stroke("#64748b"); card.strokeWidth(2); }
+        }
+
+        function findNodeAtPoint(pt, excludeId) {
+            for (const nd of PRACTICE_NODES) {
+                if (nd.id === excludeId) continue;
+                const g = nodeGroups[nd.id];
+                if (!g) continue;
+                const x = g.x(), y = g.y();
+                if (pt.x >= x - 10 && pt.x <= x + NODE_WIDTH + 10 && pt.y >= y - 10 && pt.y <= y + NODE_HEIGHT + 10) {
+                    return nd.id;
+                }
+            }
+            return null;
+        }
+
+        function getNodeCenter(id) {
+            const g = nodeGroups[id];
+            return { x: g.x() + NODE_WIDTH / 2, y: g.y() + NODE_HEIGHT / 2 };
+        }
+
+        function redrawAllEdges(validationMap = null) {
+            edgesLayer.destroyChildren();
+
+            state.connections.forEach(conn => {
+                const startCenter = getNodeCenter(conn.from);
+                const endCenter = getNodeCenter(conn.to);
+
+                let strokeColor = "#334155";
+                let badgeBg = "#ffffff";
+                let badgeBorder = "#64748b";
+
+                if (validationMap && validationMap[conn.id]) {
+                    if (validationMap[conn.id] === "valid") {
+                        strokeColor = "#15803d"; badgeBg = "#f0fdf4"; badgeBorder = "#16a34a";
+                    } else {
+                        strokeColor = "#b91c1c"; badgeBg = "#fef2f2"; badgeBorder = "#dc2626";
+                    }
+                }
+
+                const edgeGroup = new Konva.Group();
+                const arrow = new Konva.Arrow({
+                    points: [startCenter.x, startCenter.y, endCenter.x, endCenter.y],
+                    pointerLength: 10,
+                    pointerWidth: 9,
+                    fill: strokeColor,
+                    stroke: strokeColor,
+                    strokeWidth: 2.5,
+                    hitStrokeWidth: 20
+                });
+
+                const midPt = { x: (startCenter.x + endCenter.x) / 2, y: (startCenter.y + endCenter.y) / 2 };
+                
+                const badgeWidth = Math.max(70, conn.label.length * 6.5 + 16);
+                const badgeRect = new Konva.Rect({
+                    x: midPt.x - badgeWidth / 2, y: midPt.y - 11,
+                    width: badgeWidth, height: 22, fill: badgeBg, stroke: badgeBorder, strokeWidth: 1.5, cornerRadius: 6
+                });
+                const badgeText = new Konva.Text({
+                    x: midPt.x - badgeWidth / 2, y: midPt.y - 11,
+                    width: badgeWidth, height: 22, text: conn.label,
+                    fontFamily: "Inter, sans-serif", fontSize: 11, fontStyle: "600",
+                    fill: strokeColor, align: "center", verticalAlign: "middle"
+                });
+
+                edgeGroup.add(arrow);
+                edgeGroup.add(badgeRect);
+                edgeGroup.add(badgeText);
+
+                edgeGroup.on("click tap", () => {
+                    if (state.isFinished) return;
+                    openConnectorModalForEdit(conn.id);
+                });
+
+                edgesLayer.add(edgeGroup);
+            });
+            edgesLayer.batchDraw();
+        }
+
+        function fitBoardToViewport() {
+            if (!stage) return;
+            stage.scale({ x: 1, y: 1 });
+            stage.position({ x: 40, y: 40 });
+            document.getElementById("zoom-level").textContent = "100%";
+        }
+
+        const connectorModal = document.getElementById("connector-modal");
+        const optionsList = document.getElementById("connector-options-list");
+        const btnDeleteConn = document.getElementById("btn-delete-connection");
+
+        function openConnectorModal(fromId, toId) {
+            state.pendingConnection = { from: fromId, to: toId };
+            state.editingConnectionId = null;
+            state.selectedLabel = CONNECTOR_LABELS[0].text;
+            document.getElementById("modal-source-label").textContent = getNodeLabel(fromId);
+            document.getElementById("modal-target-label").textContent = getNodeLabel(toId);
+            btnDeleteConn.classList.add("hidden");
+            renderOptions();
+            connectorModal.classList.remove("hidden");
+        }
+
+        function openConnectorModalForEdit(connId) {
+            const conn = state.connections.find(c => c.id === connId);
+            if (!conn) return;
+            state.pendingConnection = null;
+            state.editingConnectionId = connId;
+            state.selectedLabel = conn.label;
+            document.getElementById("modal-source-label").textContent = getNodeLabel(conn.from);
+            document.getElementById("modal-target-label").textContent = getNodeLabel(conn.to);
+            btnDeleteConn.classList.remove("hidden");
+            renderOptions();
+            connectorModal.classList.remove("hidden");
+        }
+
+        function renderOptions() {
+            optionsList.innerHTML = "";
+            CONNECTOR_LABELS.forEach(item => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `px-3 py-2 rounded-xl border text-left text-xs font-semibold cursor-pointer ${
+                    state.selectedLabel === item.text ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-300"
+                }`;
+                btn.textContent = item.text;
+                btn.onclick = () => { state.selectedLabel = item.text; renderOptions(); };
+                optionsList.appendChild(btn);
+            });
+        }
+
+        document.getElementById("btn-close-connector-modal").onclick = () => connectorModal.classList.add("hidden");
+        document.getElementById("btn-cancel-connector").onclick = () => connectorModal.classList.add("hidden");
+
+        document.getElementById("btn-save-connector").onclick = () => {
+            if (state.pendingConnection) {
+                const { from, to } = state.pendingConnection;
+                if (state.connections.some(c => c.from === from && c.to === to)) {
+                    showToast("Ya existe esa conexión.");
+                    connectorModal.classList.add("hidden");
+                    return;
+                }
+                state.connections.push({ id: `c_${Date.now()}`, from, to, label: state.selectedLabel });
+                showToast("Conexión añadida.");
+            } else if (state.editingConnectionId) {
+                const conn = state.connections.find(c => c.id === state.editingConnectionId);
+                if (conn) conn.label = state.selectedLabel;
+                showToast("Etiqueta actualizada.");
+            }
+            updateConnectionsCounter();
+            redrawAllEdges();
+            connectorModal.classList.add("hidden");
+        };
+
+        btnDeleteConn.onclick = () => {
+            state.connections = state.connections.filter(c => c.id !== state.editingConnectionId);
+            updateConnectionsCounter();
+            redrawAllEdges();
+            connectorModal.classList.add("hidden");
+            showToast("Flecha eliminada.");
+        };
+
+        const confirmModal = document.getElementById("confirm-modal");
+        document.getElementById("btn-finish").onclick = () => {
+            if (state.isFinished) {
+                document.getElementById("result-modal").classList.remove("hidden");
+                return;
+            }
+            document.getElementById("confirm-conn-count").textContent = state.connections.length;
+            confirmModal.classList.remove("hidden");
+        };
+
+        document.getElementById("btn-cancel-finish").onclick = () => confirmModal.classList.add("hidden");
+        document.getElementById("btn-confirm-finish").onclick = () => {
+            confirmModal.classList.add("hidden");
+            evaluateAndFinish();
+        };
+
+        function evaluateAndFinish() {
+            if (state.isFinished) return;
+            state.isFinished = true;
+            clearInterval(state.timerInterval);
+
+            Object.values(nodeGroups).forEach(g => g.draggable(false));
+
+            let score = 0;
+            const validationMap = {};
+            const feedbackEntries = [];
+            const countedPairs = new Set();
+
+            state.connections.forEach(conn => {
+                const pairKey = [conn.from, conn.to].sort().join("::");
+                const isValid = VALID_PAIRS_SET.has(pairKey) && !countedPairs.has(pairKey);
+
+                if (isValid) {
+                    score += 10;
+                    countedPairs.add(pairKey);
+                    validationMap[conn.id] = "valid";
+                    feedbackEntries.push({ valid: true, text: `${getNodeLabel(conn.from)} ➔ ${getNodeLabel(conn.to)}`, pts: "+10 pts" });
+                } else {
+                    validationMap[conn.id] = "invalid";
+                    feedbackEntries.push({ valid: false, text: `${getNodeLabel(conn.from)} ➔ ${getNodeLabel(conn.to)}`, pts: "0 pts (Inválida)" });
+                }
+            });
+
+            redrawAllEdges(validationMap);
+
+            document.getElementById("result-score-text").textContent = `Puntaje Total: ${score} / ${MAX_SCORE} pts`;
+            const list = document.getElementById("feedback-list");
+            list.innerHTML = "";
+
+            if (feedbackEntries.length === 0) {
+                list.innerHTML = `<div class="p-3 text-center text-slate-500">No se trazaron conexiones.</div>`;
+            } else {
+                feedbackEntries.forEach(item => {
+                    const row = document.createElement("div");
+                    row.className = `p-2.5 rounded-xl border flex justify-between items-center ${item.valid ? "bg-emerald-50 border-emerald-200 text-emerald-950" : "bg-red-50 border-red-200 text-red-950"}`;
+                    row.innerHTML = `<span class="font-medium">${item.valid ? "✔" : "✘"} ${item.text}</span><span class="font-bold">${item.pts}</span>`;
+                    list.appendChild(row);
+                });
+            }
+
+            document.getElementById("result-modal").classList.remove("hidden");
+        }
+
+        document.getElementById("btn-restart").onclick = () => window.location.reload();
+
+        document.getElementById("btn-auto-grid").onclick = () => {
+            if (state.isFinished) return;
+            fitBoardToViewport();
+            showToast("Nodos centrados.");
+        };
+
+        document.getElementById("btn-reset-view").onclick = fitBoardToViewport;
+
+        document.getElementById("btn-zoom-in").onclick = () => {
+            if (!stage) return;
+            const oldScale = stage.scaleX();
+            const newScale = Math.min(1.8, oldScale * 1.15);
+            stage.scale({ x: newScale, y: newScale });
+            document.getElementById("zoom-level").textContent = `${Math.round(newScale * 100)}%`;
+        };
+
+        document.getElementById("btn-zoom-out").onclick = () => {
+            if (!stage) return;
+            const oldScale = stage.scaleX();
+            const newScale = Math.max(0.4, oldScale / 1.15);
+            stage.scale({ x: newScale, y: newScale });
+            document.getElementById("zoom-level").textContent = `${Math.round(newScale * 100)}%`;
+        };
+
+        window.onload = () => {
+            initKonvaBoard();
+            startTimer();
+        };
+    </script>
+</body>
+</html>
